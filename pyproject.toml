@@ -1,0 +1,69 @@
+[project]
+name = "pytubetk"  
+
+version = "0.9.0"  
+
+description = "Python extensions to the itk-tubetk module"  
+
+readme = "README.md" 
+
+requires-python = ">=3.8"
+
+license = {file = "LICENSE.txt"}
+
+keywords = ["tube", "vessels", "segmentation", "registration"]  
+
+authors = [
+  {name = "Stephen Aylward", email = "stephen@aylward.org" } 
+]
+
+maintainers = [
+  {name = "Stephen Aylward", email = "stephen@aylward.org" } 
+]
+
+classifiers = [  
+  "License :: OSI Approved :: Apachde Software License",
+  "Programming Language :: Python",
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Education",
+  "Intended Audience :: Healthcare Industry",
+  "Intended Audience :: Science/Research",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Scientific/Engineering :: Medical Science Apps.",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Topic :: Software Development :: Libraries",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX",
+  "Operating System :: Unix",
+  "Operating System :: MacOS"
+]
+
+dependencies = [ 
+  "itk-tubetk",
+  "vtk",
+]
+
+#[project.optional-dependencies]
+#dev = ["check-manifest"]
+#test = ["coverage"]
+
+[project.urls]
+"Homepage" = "https://github.com/aylward/pytubetk"
+"Bug Reports" = "https://github.com/aylward/pytubetk/issues"
+"Source" = "https://github.com/aylward/pytubetk"
+"itk-tubetk" = "https://github.com/InsightSoftwareConsortium/ITKTubeTK"
+
+[project.scripts]
+"TubeViewer" = "TubeViewer:main"
+
+[tool.setuptools]
+
+# package-data = {"sample" = ["*.dat"]}
+
+[build-system]
+requires = ["setuptools>=43.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 80
