@@ -1,0 +1,8 @@
+.girder_metadata
+*.tre
+*.mha
+Binary
+CTA-Head
+MRI-Cases
+MRI-Normals
+Microscopy

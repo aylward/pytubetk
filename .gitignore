@@ -1,0 +1,6 @@
+*~
+*.swp
+__pycache__
+archive
+*.mha
+.ipynb_checkpoints
