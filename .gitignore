@@ -4,3 +4,5 @@ __pycache__
 archive
 *.mha
 .ipynb_checkpoints
+*.code-workspace
+*.egg-info
