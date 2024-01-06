@@ -13,10 +13,13 @@ class tube_viewer:
         self.tube_surfaces = convert_tubes_to_surfaces(tubes)
 
         self.data_image = None
-        self.tube_image = None
 
-        self.selected_tubes = []
-        self.current_tube_actor = None
+        self.selected_tubes_ids = []
+        self.selected_tubes_points = []
+        self.selected_tubes_actors = []
+        self.multiple_selections_enabled = False
+
+        self.renderWindowInteractor = None
 
     def set_image(self, data_image):
         self.data_image = data_image
@@ -29,62 +32,53 @@ class tube_viewer:
         tubeImageConv.Update()
         self.tube_image = tubeImageConv.GetOutput()
 
-        self.selected_tubes = []
-        self.current_tube_actor = None
-
-    def select_tubes(self, tube_list):
-        self.selected_tubes = tube_list
-
-    def select_tubes_by_id(self, tube_id_list):
-        self.selected_tubes = []
-        for i, tube in enumerate(self.tubes):
-            if tube.GetId() in tube_id_list:
-                self.selected_tubes.append(i)
+        self.selected_tubes_ids = []
+        self.selected_tubes_points = []
+        self.selected_tubes_actors = []
 
     def _updateCurrentTubeActor(self, pickedPos, actor, renwin):
-        if self.current_tube_actor != actor:
-            if self.current_tube_actor != None:
-                self.current_tube_actor.GetMapper().ScalarVisibilityOn()
-                self.current_tube_actor.GetMapper().Update()
-                self.current_tube_actor.Modified()
-            self.current_tube_actor = actor
-            if self.current_tube_actor != None:
-                self.current_tube_actor.GetMapper().ScalarVisibilityOff()
-                self.current_tube_actor.GetMapper().Update()
-                self.current_tube_actor.Modified()
-            renwin.Render()
-        pos = [pickedPos[0], pickedPos[1], pickedPos[2]]
-        print("Selected position: ", pos, flush=True)
-        if self.tube_image != None:
-            indx = self.tube_image.TransformPhysicalPointToIndex(pos)
-            id = self.tube_image.GetPixel(indx)
-            if id == 0:
-                print("ERROR: no tube selected", flush=True)
-                return
-            tube_id = int(id)
-            print("          tube id: ", tube_id, flush=True)
-            pnt_id = 0
-            if id - int(id) != 0:
-                pnt_id = int(1.0 / (id - int(id)) - 1)
-            print("         point id: ", pnt_id, flush=True)
-            tube_tube = None
-            for tube in self.tube_list:
-                if tube.GetId() == tube_id:
-                    tube_tube = tube
-                    break
-            if tube_tube == None:
-                print("ERROR: tube not found", flush=True)
-                return
-            print(
-                "         position: ",
-                tube_tube.GetPoint(pnt_id).GetPositionInWorldSpace(),
-                flush=True,
-            )
-            print(
-                "           radius: ",
-                tube_tube.GetPoint(pnt_id).GetRadiusInWorldSpace(),
-                flush=True,
-            )
+        if len(self.selected_tubes_actors) > 0:
+            if (self.multiple_selections_enabled == False and [actor] != self.selected_tubes_actors):
+                for tube_actor in self.selected_tubes_actors:
+                    tube_actor.GetMapper().ScalarVisibilityOn()
+                    tube_actor.GetMapper().Update()
+                    tube_actor.Modified()
+                self.selected_tubes_ids = []
+                self.selected_tubes_points = []
+                self.selected_tubes_actors = []
+            elif (self.multiple_selections_enabled == True and actor in self.selected_tubes_actors):
+                actor.GetMapper().ScalarVisibilityOn()
+                actor.GetMapper().Update()
+                actor.Modified()
+                idx = self.selected_tubes_actors.index(actor)
+                self.selected_tubes_ids.remove(self.selected_tubes_ids[idx])
+                self.selected_tubes_points.remove(self.selected_tubes_points[idx])
+                self.selected_tubes_actors.remove(self.selected_tubes_actors[idx])
+                actor = None
+        if actor != None:
+            pos = [pickedPos[0], pickedPos[1], pickedPos[2]]
+            tube_poly_data = actor.GetMapper().GetInput()
+            tube_id = tube_poly_data.GetPointData().GetScalars("Id").GetTuple(0)
+            tube_length = tube_poly_data.GetNumberOfPoints()
+            point_id = tube_poly_data.FindPoint(pos)
+            point_pos = tube_poly_data.GetPoint(point_id)
+            point_radius = tube_poly_data.GetPointData().GetScalars("Radius").GetTuple(point_id)[0]
+            if not actor in self.selected_tubes_actors:
+                self.selected_tubes_ids.append(tube_id)
+                self.selected_tubes_points.append(point_id)
+                self.selected_tubes_actors.append(actor)
+                actor.GetMapper().ScalarVisibilityOff()
+                actor.GetProperty().SetColor(1, 1, 1)
+                actor.GetMapper().Update()
+                actor.Modified()
+            print("Selected position: ", pos)
+            print("  Tube id: ", tube_id[0])
+            print("  Tube Length: ", tube_length)
+            print("    Point id: ", point_id)
+            print("    Point position: ", point_pos)
+            print("    Point radius: ", point_radius)
+            print("", flush=True)
+        renwin.Render()
 
     def _leftButtonPressEvent(self, obj, event):
         clickPos = obj.GetEventPosition()
@@ -95,15 +89,25 @@ class tube_viewer:
             clickPos[0],
             clickPos[1],
             0,
-            obj.GetRenderWindow().GetRenderers().GetFirstRenderer(),
+            self.renderWindowInteractor.GetRenderWindow().GetRenderers().GetFirstRenderer(),
         )
         pickedActor = picker.GetActor()
         pickedPos = picker.GetPickPosition()
 
+        self.multiple_selections_enabled = obj.GetShiftKey()
         if pickedActor != None:
             self._updateCurrentTubeActor(
                 pickedPos, pickedActor, obj.GetRenderWindow()
             )
+
+        return 0
+
+    def _keyPressEvent(self, obj, event):
+        key = self.renderWindowInteractor.GetKeySym()
+
+        if key == "Escape":
+            self.renderWindowInteractor.GetRenderWindow().Finalize()
+            self.renderWindowInteractor.TerminateApp()
 
         return 0
 
@@ -114,22 +118,25 @@ class tube_viewer:
         renderWindow.SetWindowName(param)
         renderWindow.AddRenderer(renderer)
 
-        renderWindowInteractor = vtkRenderWindowInteractor()
-        renderWindowInteractor.SetRenderWindow(renderWindow)
+        self.renderWindowInteractor = vtkRenderWindowInteractor()
+        self.renderWindowInteractor.SetRenderWindow(renderWindow)
 
-        renderWindowInteractor.SetInteractorStyle(
+        self.renderWindowInteractor.SetInteractorStyle(
             vtkInteractorStyleTrackballCamera()
         )
-        # renderWindowInteractor.RemoveObservers("LeftButtonPressEvent")
-        renderWindowInteractor.AddObserver(
+
+        self.renderWindowInteractor.AddObserver(
             "LeftButtonPressEvent", self._leftButtonPressEvent
+        )
+        self.renderWindowInteractor.AddObserver(
+            "KeyPressEvent", self._keyPressEvent
         )
 
         mapper = []
         actor = []
         for i in range(self.num_tubes):
             if vessel_list == [] or i in vessel_list:
-                # pdata[i].GetPointData().SetActiveScalars(param)
+                pdata[i].GetPointData().SetActiveScalars(param)
 
                 mapper.append(vtkPolyDataMapper())
                 mapper[-1].SetInputData(pdata[i])
@@ -140,15 +147,15 @@ class tube_viewer:
 
                 renderer.AddActor(actor[-1])
 
-                if self.selected_tubes != [] and i in self.selected_tubes:
-                    actor[-1].GetProperty().SetColor(1, 0, 0)
-                    mapper[-1].ScalarVisibilityOff()
-                    mapper[-1].Update()
-                    actor[-1].Modified()
+                #if self.selected_tubes != [] and i in self.selected_tubes:
+                    #actor[-1].GetProperty().SetColor(1, 0, 0)
+                    #mapper[-1].ScalarVisibilityOff()
+                    #mapper[-1].Update()
+                    #actor[-1].Modified()
 
         renderWindow.Render()
-        renderWindowInteractor.Initialize()
-        renderWindowInteractor.Start()
+        self.renderWindowInteractor.Initialize()
+        self.renderWindowInteractor.Start()
 
     def render_tubes_as_polylines(self, param="Radius", vessel_list=[]):
         if self.tube_polylines == []:
@@ -158,5 +165,4 @@ class tube_viewer:
     def render_tubes_as_surfaces(self, param="Radius", vessel_list=[]):
         if self.tube_surfaces == []:
             self.tube_surfaces = convert_tubes_to_surfaces(self.tubes)
-
         self._render(self.tube_surfaces, param, vessel_list)
