@@ -1,37 +1,22 @@
 from functools import cache
 
-import itk
-import vtk
-from itk import TubeTK as ttk
-from tube_utils import *
+from tube_utils import get_children_as_list
+
 from vtkmodules.vtkCommonCore import vtkDoubleArray, vtkPoints
 from vtkmodules.vtkCommonDataModel import (
     vtkCellArray,
-    vtkPointData,
     vtkPolyData,
     vtkPolyLine,
 )
 from vtkmodules.vtkFiltersCore import vtkTubeFilter
-from vtkmodules.vtkInteractionStyle import vtkInteractorStyleTrackballCamera
-from vtkmodules.vtkRenderingCore import (
-    vtkActor,
-    vtkCellPicker,
-    vtkPolyDataMapper,
-    vtkRenderer,
-    vtkRenderWindow,
-    vtkRenderWindowInteractor,
-)
 
 
 @cache
 def convert_tubes_to_polylines(tubes):
-    dimension = 3
-
     tube_polylines = []
 
     tubes.Update()
     tube_list = get_children_as_list(tubes)
-    num_tubes = len(tube_list)
 
     for tube in tube_list:
         tube.Update()
@@ -55,21 +40,6 @@ def convert_tubes_to_polylines(tubes):
         data_color.SetName("Color")
         data_color.SetNumberOfComponents(4)
         data_color.SetNumberOfTuples(tube_num_points)
-
-        data_t = vtkDoubleArray()
-        data_t.SetName("Tangent")
-        data_t.SetNumberOfComponents(dimension)
-        data_t.SetNumberOfTuples(tube_num_points)
-
-        data_n1 = vtkDoubleArray()
-        data_n1.SetName("Normal1")
-        data_n1.SetNumberOfComponents(dimension)
-        data_n1.SetNumberOfTuples(tube_num_points)
-
-        data_n2 = vtkDoubleArray()
-        data_n2.SetName("Normal2")
-        data_n2.SetNumberOfComponents(dimension)
-        data_n2.SetNumberOfTuples(tube_num_points)
 
         data_a1 = vtkDoubleArray()
         data_a1.SetName("Alpha1")
@@ -115,14 +85,11 @@ def convert_tubes_to_polylines(tubes):
         tube_line.GetPointIds().SetNumberOfIds(tube_num_points)
         for point_num, point in enumerate(tube.GetPoints()):
             tube_line.GetPointIds().SetId(point_num, point_num)
+            data_point.SetPoint(point_num, *point.GetPositionInWorldSpace())
 
             data_id.SetTuple1(point_num, tube.GetId())
-            data_point.SetPoint(point_num, *point.GetPositionInWorldSpace())
             data_radius.SetTuple1(point_num, point.GetRadiusInWorldSpace())
             data_color.SetTuple4(point_num, *point.GetColor())
-            data_t.SetTuple3(point_num, *point.GetTangentInWorldSpace())
-            data_n1.SetTuple3(point_num, *point.GetNormal1InWorldSpace())
-            data_n2.SetTuple3(point_num, *point.GetNormal2InWorldSpace())
 
             data_ridgeness.SetTuple1(point_num, point.GetRidgeness())
             data_medialness.SetTuple1(point_num, point.GetMedialness())
@@ -141,12 +108,9 @@ def convert_tubes_to_polylines(tubes):
         tube_polylines.append(vtkPolyData())
         tube_polylines[-1].SetPoints(data_point)
         tube_polylines[-1].SetLines(tube_line_array)
-        tube_polylines[-1].GetPointData().AddArray(data_radius)
         tube_polylines[-1].GetPointData().AddArray(data_id)
+        tube_polylines[-1].GetPointData().AddArray(data_radius)
         tube_polylines[-1].GetPointData().AddArray(data_color)
-        tube_polylines[-1].GetPointData().AddArray(data_t)
-        tube_polylines[-1].GetPointData().AddArray(data_n1)
-        tube_polylines[-1].GetPointData().AddArray(data_n2)
         tube_polylines[-1].GetPointData().AddArray(data_ridgeness)
         tube_polylines[-1].GetPointData().AddArray(data_medialness)
         tube_polylines[-1].GetPointData().AddArray(data_branchness)

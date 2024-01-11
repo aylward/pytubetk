@@ -6,3 +6,4 @@ archive
 .ipynb_checkpoints
 *.code-workspace
 *.egg-info
+.vscode
